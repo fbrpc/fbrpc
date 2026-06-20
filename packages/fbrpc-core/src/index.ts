@@ -10,6 +10,7 @@ export type {
   AnyApiHandler,
   AnyStreamHandler,
   ServiceHandlers,
+  ServiceStreamHandlers,
   ApiModule,
   SuccResponse,
   ErrResponse,

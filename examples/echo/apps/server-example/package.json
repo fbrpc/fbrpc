@@ -1,0 +1,19 @@
+{
+  "name": "@fbrpc/server-example",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx src/server.ts"
+  },
+  "dependencies": {
+    "@fbrpc/api-example": "workspace:*",
+    "@fbrpc/fbrpc-core": "workspace:*",
+    "@fbrpc/fbrpc-server": "workspace:*",
+    "fastify": "^5.0.0"
+  },
+  "devDependencies": {
+    "tsx": "^4.0.0",
+    "typescript": "^5.0.0"
+  }
+}

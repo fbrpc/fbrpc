@@ -89,6 +89,21 @@ export type ServiceHandlers<P> = {
     : never
 };
 
+/**
+ * 从 Protocol 推导类型安全的 SSE 流式 handler 映射。
+ *
+ * 与 ServiceHandlers 对称——但 handler 返回 void（同步），
+ * StreamCall.res 固定为 void（流式不返回）。
+ *
+ * 配合 satisfies Partial<ServiceStreamHandlers<Protocol>>，
+ * 确保 key 名精确、req 类型对齐。Partial 因为不是每个方法都有流式。
+ */
+export type ServiceStreamHandlers<P> = {
+  [K in keyof P & string]: P[K] extends ApiDef<infer Req, any>
+    ? (call: StreamCall<ApiDef<Req, void>>) => void
+    : never;
+};
+
 // ── 模块描述 ──
 
 /**
