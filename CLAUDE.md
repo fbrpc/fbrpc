@@ -49,7 +49,7 @@ cd packages/fbrpc-client && sed -i 's/"@birderrr\/fbrpc-core": "\^0\.1\.0"/"@bir
 
 # 6. 提交并推送
 git add -A && git commit -m "release: v0.1.x" && git tag v0.1.x
-git push origin master --tags && git push github-pkg master --tags
+git push origin master --tags
 ```
 
 ### 发布顺序
@@ -69,7 +69,6 @@ cd packages/fbrpc-client && npm version patch --no-git-tag-version
 | 名称 | URL | 用途 |
 |------|-----|------|
 | `origin` | `git@github.com:birderrr/fbrpc.git` | 主仓库 |
-| `github-pkg` | `git@github.com:birderrr/fbrpc.git` | GitHub Packages 上游（同仓库） |
 
 ## 备注
 

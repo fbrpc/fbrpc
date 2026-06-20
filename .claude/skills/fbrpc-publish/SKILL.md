@@ -82,7 +82,6 @@ git add -A
 git commit -m "release: v<version>"
 git tag v<version>
 git push origin master --tags
-git push github-pkg master --tags
 ```
 
 ### 9. 输出汇总
