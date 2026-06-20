@@ -9,10 +9,6 @@ export interface ApiDef<Req = unknown, Res = unknown> {
     req: Req;
     res: Res;
 }
-/** 从 ApiDef 提取请求类型 */
-export type ReqOf<D extends ApiDef> = D["req"];
-/** 从 ApiDef 提取响应类型 */
-export type ResOf<D extends ApiDef> = D["res"];
 /** 协议映射：{ 方法名: ApiDef } */
 export type Protocol = Record<string, ApiDef>;
 /**

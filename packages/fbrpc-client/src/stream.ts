@@ -8,7 +8,7 @@
  *     console.log(chunk);
  *   }
  */
-import type { ApiDef, ReqOf } from "@fbrpc/fbrpc-core";
+import type { ApiDef } from "@fbrpc/fbrpc-core";
 
 export interface StreamOptions {
   /** 附加的 HTTP headers */
@@ -20,7 +20,7 @@ export interface StreamOptions {
  */
 export async function* streamRequest<D extends ApiDef>(
   url: string,
-  req: ReqOf<D>,
+  req: D["req"],
   opts?: StreamOptions,
 ): AsyncGenerator<unknown, void, undefined> {
   const headers: Record<string, string> = {

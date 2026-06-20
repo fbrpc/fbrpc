@@ -1,7 +1,5 @@
 export type {
   ApiDef,
-  ReqOf,
-  ResOf,
   Protocol,
   ApiCall,
   StreamCall,
