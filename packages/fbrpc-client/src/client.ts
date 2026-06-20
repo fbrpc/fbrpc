@@ -12,7 +12,7 @@
  *   // 流式 SSE → AsyncGenerator
  *   for await (const chunk of api.echo.streamEcho({ count: 3 })) {}
  */
-import type { ApiDef, Protocol, ReqOf, ResOf, ApiResponse } from "@fbrpc/fbrpc-core";
+import type { ApiDef, Protocol, ApiResponse } from "@fbrpc/fbrpc-core";
 import { streamRequest } from "./stream.js";
 
 // ── 类型魔法 ──

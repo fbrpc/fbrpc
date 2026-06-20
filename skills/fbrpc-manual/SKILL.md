@@ -287,6 +287,8 @@ call.stream(async (send) => {
 ```ts
 const rpc = await createRouter({
   apiDir: "./src/services",
+  cors: true,                  // 或 { origin: "https://example.com" }
+  timeout: 30_000,             // 请求超时（毫秒）
   auth: (req) => {
     const token = req.headers.authorization?.replace("Bearer ", "");
     if (!token) return null;                           // null → 401

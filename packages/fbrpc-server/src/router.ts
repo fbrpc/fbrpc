@@ -18,26 +18,19 @@ import { scanModules } from "./scanner.js";
 // ── 公开类型 ──
 
 export interface RouterOptions {
-  /**
-   * services 目录绝对路径。
-   * 扫描 services 下各模块的 api.ts。
-   */
+  /** services 目录绝对路径。扫描 services 下各模块的 api.ts。 */
   apiDir: string;
-  /**
-   * 鉴权函数。
-   * 返回 null 则拒绝请求（401）。
-   * 返回的对象注入 call.meta。
-   */
+  /** 鉴权函数。返回 null → 401。返回对象注入 call.meta。 */
   auth?: (req: FastifyRequest) => Record<string, unknown> | null;
-  /**
-   * 跳过鉴权的路由。支持 "模块.方法" 和 "模块.*" 通配。
-   * 如 ["auth.login", "auth.register", "monitor.*"]
-   */
+  /** 跳过鉴权的路由。支持 "模块.方法" 和 "模块.*" 通配。 */
   publicRoutes?: string[];
+  /** CORS。false=不设头，true=*，{ origin }=指定来源。默认 false。 */
+  cors?: boolean | { origin?: string };
+  /** 请求超时（毫秒）。默认不设。 */
+  timeout?: number;
 }
 
 export interface FbrpcRouter {
-  /** 注册到 Fastify */
   register: (app: FastifyInstance, opts?: { prefix?: string }) => Promise<void>;
 }
 
@@ -46,32 +39,48 @@ export interface FbrpcRouter {
 export async function createRouter(opts: RouterOptions): Promise<FbrpcRouter> {
   const modules = await scanModules(opts.apiDir);
 
+  // CORS 头
+  const corsOrigin = !opts.cors ? null
+    : opts.cors === true ? "*"
+    : (opts.cors.origin ?? "*");
+
+  const sseHeaders: Record<string, string> = {
+    "Content-Type": "text/event-stream",
+    "Cache-Control": "no-cache",
+    Connection: "keep-alive",
+  };
+  if (corsOrigin) sseHeaders["Access-Control-Allow-Origin"] = corsOrigin;
+
+  const isPublicRoute = (moduleName: string, methodName: string) =>
+    opts.publicRoutes?.includes(`${moduleName}.${methodName}`) ||
+    opts.publicRoutes?.includes(`${moduleName}.*`);
+
+  const authenticate = (request: FastifyRequest, moduleName: string, methodName: string) => {
+    if (isPublicRoute(moduleName, methodName)) return {};
+    return opts.auth?.(request) ?? null;
+  };
+
   return {
-    async register(app: FastifyInstance, registerOpts?: { prefix?: string }) {
-      const _prefix = registerOpts?.prefix ?? "/api";
+    async register(app: FastifyInstance, _registerOpts?: { prefix?: string }) {
 
       for (const [moduleName, mod] of Object.entries(modules)) {
 
         // ── 普通 RPC ──
         for (const [methodName, handler] of Object.entries(mod.handlers)) {
-          const path = `/${moduleName}/${methodName}`;
+          app.post(`/${moduleName}/${methodName}`, async (request: FastifyRequest, reply: FastifyReply) => {
+            if (corsOrigin) reply.header("Access-Control-Allow-Origin", corsOrigin);
+            if (opts.timeout) request.raw.setTimeout(opts.timeout);
 
-          app.post(path, async (request: FastifyRequest, reply: FastifyReply) => {
-            // 鉴权（公开路由跳过）
-            const routeKey = `${moduleName}.${methodName}`;
-            const isPublic =
-              opts.publicRoutes?.includes(routeKey) ||
-              opts.publicRoutes?.includes(`${moduleName}.*`);
-            const meta = isPublic ? {} : (opts.auth?.(request) ?? null);
+            const meta = authenticate(request, moduleName, methodName);
             if (meta === null) {
               return reply.status(401).send({ ok: false, error: { message: "Unauthorized", code: "UNAUTHORIZED" } });
             }
 
-            // 构造 call
+            // call.req 来自 request.body——HTTP 边界的必然类型转换
             let settled = false;
             const call: ApiCall = {
               req: (request.body ?? {}) as Record<string, unknown>,
-              meta: meta ?? {},
+              meta,
               succ(data: unknown) {
                 settled = true;
                 return reply.send({ ok: true, data });
@@ -101,31 +110,21 @@ export async function createRouter(opts: RouterOptions): Promise<FbrpcRouter> {
 
         // ── SSE 流式 ──
         for (const [methodName, handler] of Object.entries(mod.streams)) {
-          const path = `/${moduleName}/${methodName}`;
+          app.post(`/${moduleName}/${methodName}`, async (request: FastifyRequest, reply: FastifyReply) => {
+            if (opts.timeout) request.raw.setTimeout(opts.timeout);
 
-          app.post(path, async (request: FastifyRequest, reply: FastifyReply) => {
-            // 鉴权（公开路由跳过）
-            const routeKey = `${moduleName}.${methodName}`;
-            const isPublic =
-              opts.publicRoutes?.includes(routeKey) ||
-              opts.publicRoutes?.includes(`${moduleName}.*`);
-            const meta = isPublic ? {} : (opts.auth?.(request) ?? null);
+            const meta = authenticate(request, moduleName, methodName);
             if (meta === null) {
               return reply.status(401).send({ ok: false, error: { message: "Unauthorized", code: "UNAUTHORIZED" } });
             }
 
-            reply.raw.writeHead(200, {
-              "Content-Type": "text/event-stream",
-              "Cache-Control": "no-cache",
-              Connection: "keep-alive",
-              "Access-Control-Allow-Origin": "*",
-            });
+            reply.raw.writeHead(200, sseHeaders);
 
             let settled = false;
 
             const call: StreamCall = {
               req: (request.body ?? {}) as Record<string, unknown>,
-              meta: meta ?? {},
+              meta,
               stream(fn: (send: (chunk: unknown) => void) => Promise<void>) {
                 settled = true;
                 fn((chunk: unknown) => {
@@ -148,7 +147,17 @@ export async function createRouter(opts: RouterOptions): Promise<FbrpcRouter> {
               },
             };
 
-            handler(call);
+            try {
+              handler(call);
+            } catch (err) {
+              if (!settled) {
+                settled = true;
+                const message = err instanceof Error ? err.message : "Stream error";
+                const code = err instanceof RpcError ? err.code : "INTERNAL";
+                reply.raw.write(`event: error\ndata: ${JSON.stringify({ error: message, code })}\n\n`);
+                reply.raw.end();
+              }
+            }
 
             if (!settled) {
               reply.raw.write(`event: error\ndata: ${JSON.stringify({ error: "Handler did not call stream() or error()" })}\n\n`);

@@ -12,25 +12,20 @@
  */
 import type { FastifyInstance, FastifyRequest } from "fastify";
 export interface RouterOptions {
-    /**
-     * services 目录绝对路径。
-     * 扫描 services 下各模块的 api.ts。
-     */
+    /** services 目录绝对路径。扫描 services 下各模块的 api.ts。 */
     apiDir: string;
-    /**
-     * 鉴权函数。
-     * 返回 null 则拒绝请求（401）。
-     * 返回的对象注入 call.meta。
-     */
+    /** 鉴权函数。返回 null → 401。返回对象注入 call.meta。 */
     auth?: (req: FastifyRequest) => Record<string, unknown> | null;
-    /**
-     * 跳过鉴权的路由。支持 "模块.方法" 和 "模块.*" 通配。
-     * 如 ["auth.login", "auth.register", "monitor.*"]
-     */
+    /** 跳过鉴权的路由。支持 "模块.方法" 和 "模块.*" 通配。 */
     publicRoutes?: string[];
+    /** CORS。false=不设头，true=*，{ origin }=指定来源。默认 false。 */
+    cors?: boolean | {
+        origin?: string;
+    };
+    /** 请求超时（毫秒）。默认不设。 */
+    timeout?: number;
 }
 export interface FbrpcRouter {
-    /** 注册到 Fastify */
     register: (app: FastifyInstance, opts?: {
         prefix?: string;
     }) => Promise<void>;

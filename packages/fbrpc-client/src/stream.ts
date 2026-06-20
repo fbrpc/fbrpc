@@ -8,7 +8,7 @@
  *     console.log(chunk);
  *   }
  */
-import type { ApiDef, Protocol, ReqOf, StreamCall } from "@fbrpc/fbrpc-core";
+import type { ApiDef, ReqOf } from "@fbrpc/fbrpc-core";
 
 export interface StreamOptions {
   /** 附加的 HTTP headers */

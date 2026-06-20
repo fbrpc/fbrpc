@@ -3,27 +3,43 @@ import { scanModules } from "./scanner.js";
 // ── 工厂 ──
 export async function createRouter(opts) {
     const modules = await scanModules(opts.apiDir);
+    // CORS 头
+    const corsOrigin = !opts.cors ? null
+        : opts.cors === true ? "*"
+            : (opts.cors.origin ?? "*");
+    const sseHeaders = {
+        "Content-Type": "text/event-stream",
+        "Cache-Control": "no-cache",
+        Connection: "keep-alive",
+    };
+    if (corsOrigin)
+        sseHeaders["Access-Control-Allow-Origin"] = corsOrigin;
+    const isPublicRoute = (moduleName, methodName) => opts.publicRoutes?.includes(`${moduleName}.${methodName}`) ||
+        opts.publicRoutes?.includes(`${moduleName}.*`);
+    const authenticate = (request, moduleName, methodName) => {
+        if (isPublicRoute(moduleName, methodName))
+            return {};
+        return opts.auth?.(request) ?? null;
+    };
     return {
-        async register(app, registerOpts) {
-            const _prefix = registerOpts?.prefix ?? "/api";
+        async register(app, _registerOpts) {
             for (const [moduleName, mod] of Object.entries(modules)) {
                 // ── 普通 RPC ──
                 for (const [methodName, handler] of Object.entries(mod.handlers)) {
-                    const path = `/${moduleName}/${methodName}`;
-                    app.post(path, async (request, reply) => {
-                        // 鉴权（公开路由跳过）
-                        const routeKey = `${moduleName}.${methodName}`;
-                        const isPublic = opts.publicRoutes?.includes(routeKey) ||
-                            opts.publicRoutes?.includes(`${moduleName}.*`);
-                        const meta = isPublic ? {} : (opts.auth?.(request) ?? null);
+                    app.post(`/${moduleName}/${methodName}`, async (request, reply) => {
+                        if (corsOrigin)
+                            reply.header("Access-Control-Allow-Origin", corsOrigin);
+                        if (opts.timeout)
+                            request.raw.setTimeout(opts.timeout);
+                        const meta = authenticate(request, moduleName, methodName);
                         if (meta === null) {
                             return reply.status(401).send({ ok: false, error: { message: "Unauthorized", code: "UNAUTHORIZED" } });
                         }
-                        // 构造 call
+                        // call.req 来自 request.body——HTTP 边界的必然类型转换
                         let settled = false;
                         const call = {
                             req: (request.body ?? {}),
-                            meta: meta ?? {},
+                            meta,
                             succ(data) {
                                 settled = true;
                                 return reply.send({ ok: true, data });
@@ -51,26 +67,18 @@ export async function createRouter(opts) {
                 }
                 // ── SSE 流式 ──
                 for (const [methodName, handler] of Object.entries(mod.streams)) {
-                    const path = `/${moduleName}/${methodName}`;
-                    app.post(path, async (request, reply) => {
-                        // 鉴权（公开路由跳过）
-                        const routeKey = `${moduleName}.${methodName}`;
-                        const isPublic = opts.publicRoutes?.includes(routeKey) ||
-                            opts.publicRoutes?.includes(`${moduleName}.*`);
-                        const meta = isPublic ? {} : (opts.auth?.(request) ?? null);
+                    app.post(`/${moduleName}/${methodName}`, async (request, reply) => {
+                        if (opts.timeout)
+                            request.raw.setTimeout(opts.timeout);
+                        const meta = authenticate(request, moduleName, methodName);
                         if (meta === null) {
                             return reply.status(401).send({ ok: false, error: { message: "Unauthorized", code: "UNAUTHORIZED" } });
                         }
-                        reply.raw.writeHead(200, {
-                            "Content-Type": "text/event-stream",
-                            "Cache-Control": "no-cache",
-                            Connection: "keep-alive",
-                            "Access-Control-Allow-Origin": "*",
-                        });
+                        reply.raw.writeHead(200, sseHeaders);
                         let settled = false;
                         const call = {
                             req: (request.body ?? {}),
-                            meta: meta ?? {},
+                            meta,
                             stream(fn) {
                                 settled = true;
                                 fn((chunk) => {
@@ -92,7 +100,18 @@ export async function createRouter(opts) {
                                 reply.raw.end();
                             },
                         };
-                        handler(call);
+                        try {
+                            handler(call);
+                        }
+                        catch (err) {
+                            if (!settled) {
+                                settled = true;
+                                const message = err instanceof Error ? err.message : "Stream error";
+                                const code = err instanceof RpcError ? err.code : "INTERNAL";
+                                reply.raw.write(`event: error\ndata: ${JSON.stringify({ error: message, code })}\n\n`);
+                                reply.raw.end();
+                            }
+                        }
                         if (!settled) {
                             reply.raw.write(`event: error\ndata: ${JSON.stringify({ error: "Handler did not call stream() or error()" })}\n\n`);
                             reply.raw.end();
