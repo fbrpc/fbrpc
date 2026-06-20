@@ -1,4 +1,4 @@
-import type { ApiModule } from "fbrpc-core";
+import type { ApiModule } from "@birderr/fbrpc-core";
 export interface ScanResult {
     /** 模块名 → ApiModule */
     [moduleName: string]: ApiModule;

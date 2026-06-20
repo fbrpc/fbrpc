@@ -7,7 +7,7 @@
  *   // result: { ok: true; data: { accessToken, refreshToken } }
  *   //       | { ok: false; error: { message, code } }
  */
-import type { ApiDef, Protocol, ReqOf, ResOf, ApiResponse } from "fbrpc-core";
+import type { ApiDef, Protocol, ReqOf, ResOf, ApiResponse } from "@birderr/fbrpc-core";
 /** 将 Protocol 映射为可调用方法 */
 type ProtocolClient<P extends Protocol> = {
     [K in keyof P & string]: P[K] extends ApiDef ? (req: ReqOf<P[K]>) => Promise<ApiResponse<ResOf<P[K]>>> : never;

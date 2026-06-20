@@ -1,5 +1,5 @@
 {
-  "name": "fbrpc-core",
+  "name": "@birderr/fbrpc-core",
   "version": "0.1.0",
   "type": "module",
   "main": "./dist/index.js",
