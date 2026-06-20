@@ -67,6 +67,8 @@ export type { UsersProtocol } from "./protocols/users.js";
 
 ## api.ts
 
+api.ts 只做**翻译**：call.req 传入 → 委托 _internal → 把结果转成 call.succ / call.error。不放校验、不放业务逻辑。
+
 ### 基本结构
 
 ```ts
@@ -79,17 +81,8 @@ type C<K extends keyof AuthProtocol> = ApiCall<AuthProtocol[K]>;
 
 export const handlers: Record<string, AnyApiHandler> = {
   async login(call: C<"login">) {
-    const { username, password } = call.req;
-
-    // 1. 校验
-    if (!username) return call.error("用户名不能为空", "VALIDATION");
-    if (password.length < 6) return call.error("密码至少6位", "VALIDATION");
-
-    // 2. 业务逻辑委托到 _internal
-    const r = await svc.loginUser(username, password);
-
-    // 3. 返回
-    if (r.invalid) return call.error("用户名或密码错误");
+    const r = await svc.loginUser(call.req);
+    if (r.err) return call.error(r.err.message, r.err.code);
     call.succ({ accessToken: r.accessToken, refreshToken: r.refreshToken });
   },
 };
@@ -99,24 +92,32 @@ export const streams: Record<string, AnyStreamHandler> = {
 };
 ```
 
-### _internal/impl.ts
+### _internal/impl.ts — 校验 + 业务在一起
 
 ```ts
 // services/auth/_internal/impl.ts
-// 纯业务逻辑，不接触 ApiCall、不接触 HTTP。
-// 返回 POJO，由 api.ts 转换为 call.succ / call.error。
+// 纯业务函数，不接触 ApiCall。校验也在这里——它是业务规则的一部分。
+
+export interface ServiceError { message: string; code: string; }
 
 interface LoginResult {
   accessToken: string;
   refreshToken: string;
-  invalid?: boolean;
+  err?: ServiceError;
 }
 
-export async function loginUser(username: string, password: string): Promise<LoginResult> {
-  const user = await db.user.findUnique({ where: { username } });
-  if (!user || !(await bcrypt.compare(password, user.passwordHash))) {
-    return { invalid: true, accessToken: "", refreshToken: "" };
+export async function loginUser(req: { username: string; password: string }): Promise<LoginResult> {
+  // 校验
+  if (!req.username) return { err: { message: "用户名不能为空", code: "VALIDATION" }, accessToken: "", refreshToken: "" };
+  if (!req.password) return { err: { message: "密码不能为空", code: "VALIDATION" }, accessToken: "", refreshToken: "" };
+  if (req.password.length < 6) return { err: { message: "密码至少6位", code: "VALIDATION" }, accessToken: "", refreshToken: "" };
+
+  // 业务
+  const user = await db.user.findUnique({ where: { username: req.username } });
+  if (!user || !(await bcrypt.compare(req.password, user.passwordHash))) {
+    return { err: { message: "用户名或密码错误", code: "AUTH_FAILED" }, accessToken: "", refreshToken: "" };
   }
+
   return {
     accessToken: signJwt({ userId: user.id }),
     refreshToken: generateRefreshToken(user.id),
@@ -124,7 +125,34 @@ export async function loginUser(username: string, password: string): Promise<Log
 }
 ```
 
-**原则：** `_internal/` 函数不 import core 类型、不调 `call.*`、不读 `call.meta`。需要 meta 信息时（如 userId），由 api.ts 从 `call.meta` 取出当参数传入。
+**原则：** `_internal/` 函数不 import core 类型、不调 `call.*`、不读 `call.meta`。需要 meta 时（如当前 userId），由 api.ts 从 `call.meta` 取出当参数传入。
+
+### 复杂校验拆独立文件
+
+校验逻辑较多时可单独拆：
+
+```ts
+// _internal/validate.ts
+export interface FieldError { field: string; message: string; }
+
+export function validateLogin(req: LoginReq): FieldError[] {
+  const errors: FieldError[] = [];
+  if (!req.username) errors.push({ field: "username", message: "用户名不能为空" });
+  if (!req.password) errors.push({ field: "password", message: "密码不能为空" });
+  if (req.password && req.password.length < 6) errors.push({ field: "password", message: "密码至少6位" });
+  return errors;
+}
+```
+
+api.ts 中调用：
+```ts
+async login(call: C<"login">) {
+  const errors = validateLogin(call.req);
+  if (errors.length) return call.error(errors[0].message, "VALIDATION");
+  const r = await svc.loginUser(call.req);
+  // ...
+}
+```
 
 ### 类型要点
 
@@ -232,29 +260,6 @@ import jwt from "jsonwebtoken";
 export function verifyJwt(token: string): { sub: string; role: string } | null {
   try { return jwt.verify(token, SECRET) as any; }
   catch { return null; }
-}
-```
-
-## 校验模式
-
-```ts
-// _internal/validate.ts
-interface FieldError { field: string; message: string; }
-
-export function validateLogin(req: LoginReq): FieldError | null {
-  if (!req.username) return { field: "username", message: "用户名不能为空" };
-  if (!req.password) return { field: "password", message: "密码不能为空" };
-  if (req.password.length < 6) return { field: "password", message: "密码至少6位" };
-  return null;
-}
-```
-
-```ts
-// api.ts
-async login(call: C<"login">) {
-  const err = validateLogin(call.req);
-  if (err) return call.error(err.message, "VALIDATION");
-  // ...
 }
 ```
 
