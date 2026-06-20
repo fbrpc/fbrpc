@@ -12,4 +12,4 @@ export type {
   ErrResponse,
   ApiResponse,
 } from "./types.js";
-export { RpcError } from "./errors.js";
+export { RpcError, unwrap } from "./errors.js";

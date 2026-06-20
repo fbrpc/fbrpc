@@ -121,6 +121,15 @@ export async function createRouter(opts) {
                     });
                 }
             }
+            // ── 健康检查 ──
+            app.get("/health", async (_request, reply) => {
+                const moduleList = Object.keys(modules).map((name) => ({
+                    module: name,
+                    handlers: Object.keys(modules[name].handlers),
+                    streams: Object.keys(modules[name].streams),
+                }));
+                return reply.send({ ok: true, data: { status: "ok", modules: moduleList } });
+            });
         },
     };
 }

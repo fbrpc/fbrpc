@@ -245,21 +245,20 @@ export const streams = {
 
 ```ts
 import { createClient } from "@fbrpc/fbrpc-client";
+import { unwrap } from "@fbrpc/fbrpc-core";
 import type { EchoProtocol } from "<共享包>";
 
-// 普通 RPC：自动返回 Promise<ApiResponse>
-// 流式 SSE：第二个泛型声明流式方法，返回 AsyncGenerator
 const api = createClient<
   { echo: EchoProtocol },
   { echo: readonly ["streamEcho"] }
 >({
   baseUrl: "http://localhost:3008/api",
-  streams: { echo: ["streamEcho"] },  // 运行时配置（与泛型保持一致）
+  streams: { echo: ["streamEcho"] },
 });
 
-// 普通调用
-const r = await api.echo.echo({ message: "hi" });
-if (r.ok) console.log(r.data);
+// 普通调用 — unwrap() 失败自动 throw
+const data = unwrap(await api.echo.echo({ message: "hi" }));
+console.log(data);
 
 // 流式调用
 for await (const chunk of api.echo.streamEcho({ count: 3 })) {
@@ -301,6 +300,7 @@ const rpc = await createRouter({
     "health.*",       // health 模块全部公开
   ],
 });
+// 自动注册 GET /health → { modules: [{ module, handlers, streams }] }
 ```
 
 ### handler 中使用 meta

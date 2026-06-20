@@ -1,4 +1,5 @@
 import { createClient } from "@fbrpc/fbrpc-client";
+import { unwrap } from "@fbrpc/fbrpc-core";
 import type { EchoProtocol } from "@fbrpc/api-example";
 
 const api = createClient<{ echo: EchoProtocol }, { echo: readonly ["streamEcho"] }>({
@@ -8,13 +9,8 @@ const api = createClient<{ echo: EchoProtocol }, { echo: readonly ["streamEcho"]
 
 // ── 普通 RPC ──
 
-const r = await api.echo.echo({ message: "fbrpc works!" });
-if (r.ok) {
-  console.log("✓ echo:", r.data.message, `(${new Date(r.data.timestamp).toISOString()})`);
-} else {
-  console.error("✗ echo:", r.error);
-  process.exit(1);
-}
+const data = unwrap(await api.echo.echo({ message: "fbrpc works!" }));
+console.log("✓ echo:", data.message, `(${new Date(data.timestamp).toISOString()})`);
 
 // ── SSE 流式（通过 createClient，统一入口）──
 
