@@ -8,7 +8,7 @@
  *     console.log(chunk);
  *   }
  */
-import type { ApiDef, ReqOf } from "@birderrr/fbrpc-core";
+import type { ApiDef, ReqOf } from "@fbrpc/fbrpc-core";
 export interface StreamOptions {
     /** 每次请求前调用，返回 HTTP headers */
     getHeaders?: () => Record<string, string>;

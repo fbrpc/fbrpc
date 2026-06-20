@@ -1,4 +1,4 @@
-import { RpcError } from "@birderrr/fbrpc-core";
+import { RpcError } from "@fbrpc/fbrpc-core";
 import { scanModules } from "./scanner.js";
 // ── 工厂 ──
 export async function createRouter(opts) {

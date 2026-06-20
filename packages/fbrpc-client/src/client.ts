@@ -7,7 +7,7 @@
  *   // result: { ok: true; data: { accessToken, refreshToken } }
  *   //       | { ok: false; error: { message, code } }
  */
-import type { ApiDef, Protocol, ReqOf, ResOf, ApiResponse } from "@birderrr/fbrpc-core";
+import type { ApiDef, Protocol, ReqOf, ResOf, ApiResponse } from "@fbrpc/fbrpc-core";
 
 // ── 类型 ──
 

@@ -1,5 +1,5 @@
 {
-  "name": "@birderrr/fbrpc-server",
+  "name": "@fbrpc/fbrpc-server",
   "version": "0.1.0",
   "type": "module",
   "main": "./dist/index.js",
@@ -15,7 +15,7 @@
     "dev": "tsc --watch"
   },
   "dependencies": {
-    "@birderrr/fbrpc-core": "workspace:*"
+    "@fbrpc/fbrpc-core": "workspace:*"
   },
   "peerDependencies": {
     "fastify": "^5.0.0"
@@ -36,6 +36,6 @@
   ],
   "repository": {
     "type": "git",
-    "url": "https://github.com/birderrr/fbrpc"
+    "url": "https://github.com/fbrpc/fbrpc"
   }
 }
