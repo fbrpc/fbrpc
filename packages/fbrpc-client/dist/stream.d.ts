@@ -1,8 +1,8 @@
 /**
- * fbrpc SSE 流式客户端。
+ * fbrpc SSE 流式请求，返回 async iterable。
  *
  * 用法:
- *   for await (const chunk of streamClient("http://localhost:3008/api/agent/chat", {
+ *   for await (const chunk of streamRequest("http://localhost:3008/api/agent/chat", {
  *     messages: [...]
  *   })) {
  *     console.log(chunk);
