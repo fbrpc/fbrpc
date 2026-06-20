@@ -1,24 +1,24 @@
 # fbrpc
 
-Type-safe RPC framework for Fastify + TypeScript. Protocol-driven — define your API contract once, get end-to-end type safety from client to server.
+Fastify + TypeScript 类型安全的 RPC 框架。协议驱动——定义一次 API 契约，客户端到服务端全程类型安全。
 
-## Packages
+## 包
 
-| Package | Description |
+| 包 | 说明 |
 |---------|-------------|
-| `@birderrr/fbrpc-core` | Core types — `ApiDef`, `ApiCall`, `StreamCall`, `ServiceHandlers`. Zero dependencies. |
-| `@birderrr/fbrpc-server` | Fastify router — scans `services/*/api.ts`, auto-registers `POST /api/:module/:method`. |
-| `@birderrr/fbrpc-client` | Proxy-based caller — `api.auth.login(req)` with full type inference. |
+| `@birderrr/fbrpc-core` | 核心类型——`ApiDef`、`ApiCall`、`StreamCall`、`ServiceHandlers`。零依赖。 |
+| `@birderrr/fbrpc-server` | Fastify 路由——扫描 `services/*/api.ts`，自动注册 `POST /api/:module/:method`。 |
+| `@birderrr/fbrpc-client` | Proxy 调用器——`api.auth.login(req)` 完整类型推断。 |
 
-## Install
+## 安装
 
 ```bash
 pnpm add @birderrr/fbrpc-core @birderrr/fbrpc-server @birderrr/fbrpc-client
 ```
 
-## Quick Start
+## 快速开始
 
-### 1. Define a protocol (`api-user/` package)
+### 1. 定义协议（`api-user/` 包）
 
 ```ts
 import type { ApiDef } from "@birderrr/fbrpc-core";
@@ -28,7 +28,7 @@ export interface AuthProtocol {
 }
 ```
 
-### 2. Server — handler
+### 2. 服务端——处理函数
 
 ```ts
 // services/auth/api.ts
@@ -38,13 +38,13 @@ import type { AuthProtocol } from "@your/api-user";
 export const handlers = {
   async login(call: ApiCall<AuthProtocol["login"]>) {
     const { username, password } = call.req;
-    // ... authenticate ...
+    // ... 验证身份 ...
     call.succ({ accessToken: "jwt..." });
   },
 } satisfies ServiceHandlers<AuthProtocol>;
 ```
 
-### 3. Server — register routes
+### 3. 服务端——注册路由
 
 ```ts
 import Fastify from "fastify";
@@ -62,7 +62,7 @@ const rpc = await createRouter({
 await app.register(rpc.register, { prefix: "/api" });
 ```
 
-### 4. Client
+### 4. 客户端
 
 ```ts
 import { createClient } from "@birderrr/fbrpc-client";
@@ -74,10 +74,10 @@ const api = createClient<{ auth: AuthProtocol }>({
 });
 
 const result = await api.auth.login({ username: "birder", password: "xxx" });
-// result.ok === true  →  result.data.accessToken  (fully typed)
+// result.ok === true  →  result.data.accessToken  （完整类型）
 ```
 
-## Routing
+## 路由
 
 ```
 POST /api/:module/:method
@@ -86,6 +86,6 @@ services/auth/api.ts  →  handlers.login  →  POST /api/auth/login
 services/agent/api.ts →  streams.chat    →  POST /api/agent/chat (SSE)
 ```
 
-## License
+## 许可
 
 MIT
