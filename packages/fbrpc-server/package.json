@@ -26,7 +26,7 @@
     "typescript": "^5.0.0"
   },
   "description": "fbrpc server — Fastify router that scans and auto-registers API handlers.",
-  "author": "Birderr",
+  "author": "birderr",
   "license": "MIT",
   "keywords": [
     "rpc",

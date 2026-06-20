@@ -19,7 +19,7 @@
     "typescript": "^5.0.0"
   },
   "description": "fbrpc core types — protocol definition, ApiCall, StreamCall, ApiModule. Zero dependencies.",
-  "author": "Birderr",
+  "author": "birderr",
   "license": "MIT",
   "keywords": [
     "rpc",

@@ -22,7 +22,7 @@
     "typescript": "^5.0.0"
   },
   "description": "fbrpc client — Proxy-based type-safe RPC caller.",
-  "author": "Birderr",
+  "author": "birderr",
   "license": "MIT",
   "keywords": [
     "rpc",
