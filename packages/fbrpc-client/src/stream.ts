@@ -11,27 +11,22 @@
 import type { ApiDef, Protocol, ReqOf, StreamCall } from "@fbrpc/fbrpc-core";
 
 export interface StreamOptions {
-  /** 每次请求前调用，返回 HTTP headers */
-  getHeaders?: () => Record<string, string>;
+  /** 附加的 HTTP headers */
+  headers?: Record<string, string>;
 }
 
 /**
  * SSE 流式请求，返回 async iterable。
- *
- * 注意：这是底层函数，直接拼 URL。
- * 高级用法请用 createClient() + 模块协议定义。
  */
 export async function* streamRequest<D extends ApiDef>(
   url: string,
   req: ReqOf<D>,
   opts?: StreamOptions,
 ): AsyncGenerator<unknown, void, undefined> {
-  let headers: Record<string, string> = {
+  const headers: Record<string, string> = {
     "Content-Type": "application/json",
+    ...opts?.headers,
   };
-  if (opts?.getHeaders) {
-    headers = { ...headers, ...opts.getHeaders() };
-  }
 
   const res = await fetch(url, {
     method: "POST",
@@ -58,20 +53,25 @@ export async function* streamRequest<D extends ApiDef>(
       const lines = buffer.split("\n");
       buffer = lines.pop() ?? "";
 
+      let eventType = "";
+
       for (const line of lines) {
-        if (line.startsWith("data: ")) {
+        if (line.startsWith("event: ")) {
+          eventType = line.slice(7);
+        } else if (line.startsWith("data: ")) {
           const json = line.slice(6);
+          if (eventType === "error") {
+            const parsed = JSON.parse(json) as { error: string; code?: string };
+            throw new Error(`${parsed.code ?? "API_ERROR"}: ${parsed.error}`);
+          }
+          if (eventType === "done") return;
+          // 普通数据帧
+          eventType = "";
           try {
             yield JSON.parse(json);
           } catch {
-            // 非 JSON 数据直接透传
             yield json;
           }
-        } else if (line.startsWith("event: error")) {
-          // 下一行 data 包含错误信息
-          continue;
-        } else if (line.startsWith("event: done")) {
-          return;
         }
       }
     }

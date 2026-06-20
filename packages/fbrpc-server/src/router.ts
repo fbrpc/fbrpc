@@ -104,7 +104,12 @@ export async function createRouter(opts: RouterOptions): Promise<FbrpcRouter> {
           const path = `/${moduleName}/${methodName}`;
 
           app.post(path, async (request: FastifyRequest, reply: FastifyReply) => {
-            const meta = opts.auth?.(request);
+            // 鉴权（公开路由跳过）
+            const routeKey = `${moduleName}.${methodName}`;
+            const isPublic =
+              opts.publicRoutes?.includes(routeKey) ||
+              opts.publicRoutes?.includes(`${moduleName}.*`);
+            const meta = isPublic ? {} : (opts.auth?.(request) ?? null);
             if (meta === null) {
               return reply.status(401).send({ ok: false, error: { message: "Unauthorized", code: "UNAUTHORIZED" } });
             }
@@ -132,13 +137,13 @@ export async function createRouter(opts: RouterOptions): Promise<FbrpcRouter> {
                   })
                   .catch((err: unknown) => {
                     const message = err instanceof Error ? err.message : "Stream error";
-                    reply.raw.write(`event: error\ndata: ${JSON.stringify({ error: message })}\n\n`);
+                    reply.raw.write(`event: error\ndata: ${JSON.stringify({ error: message, code: "INTERNAL" })}\n\n`);
                     reply.raw.end();
                   });
               },
-              error(message: string) {
+              error(message: string, code?: string) {
                 settled = true;
-                reply.raw.write(`event: error\ndata: ${JSON.stringify({ error: message })}\n\n`);
+                reply.raw.write(`event: error\ndata: ${JSON.stringify({ error: message, code: code ?? "API_ERROR" })}\n\n`);
                 reply.raw.end();
               },
             };

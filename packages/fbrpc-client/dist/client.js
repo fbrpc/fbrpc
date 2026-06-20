@@ -1,20 +1,28 @@
-// ── 工厂 ──
+import { streamRequest } from "./stream.js";
 export function createClient(opts) {
-    const { baseUrl, getHeaders } = opts;
+    const { baseUrl, getHeaders, streams = {} } = opts;
+    const isStream = (mod, method) => {
+        return streams[mod]?.includes(method) ?? false;
+    };
     return new Proxy({}, {
         get(_target, moduleName) {
-            // 第二层 Proxy：拦截方法名
             return new Proxy({}, {
                 get(_target2, methodName) {
-                    // 返回调用函数
+                    if (methodName === "then")
+                        return undefined;
+                    if (isStream(moduleName, methodName)) {
+                        return (req) => {
+                            let headers = {};
+                            if (getHeaders)
+                                headers = getHeaders();
+                            return streamRequest(`${baseUrl}/${moduleName}/${methodName}`, req, { headers });
+                        };
+                    }
                     return async (req) => {
                         const url = `${baseUrl}/${moduleName}/${methodName}`;
-                        let headers = {
-                            "Content-Type": "application/json",
-                        };
-                        if (getHeaders) {
+                        let headers = { "Content-Type": "application/json" };
+                        if (getHeaders)
                             headers = { ...headers, ...getHeaders() };
-                        }
                         try {
                             const res = await fetch(url, {
                                 method: "POST",

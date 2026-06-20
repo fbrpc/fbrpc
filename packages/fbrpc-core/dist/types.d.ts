@@ -46,14 +46,11 @@ export interface StreamCall<D extends ApiDef<unknown, void> = ApiDef<unknown, vo
      */
     stream(fn: (send: (chunk: unknown) => Promise<void> | void) => Promise<void>): void;
     /** 流式错误 */
-    error(message: string): void;
+    error(message: string, code?: string): void;
 }
-/** 普通 RPC 处理器（泛型——用于单一定义） */
-export type ApiHandler<D extends ApiDef = ApiDef> = (call: ApiCall<D>) => Promise<void>;
-/** SSE 流式处理器（泛型——用于单一定义） */
-export type StreamHandler<D extends ApiDef<unknown, void> = ApiDef<unknown, void>> = (call: StreamCall<D>) => void;
-/** 宽松版 handler——接受任意 ApiCall，用于模块导出 */
+/** 任意 ApiCall 的 handler 类型，用于 ApiModule 和扫描器 */
 export type AnyApiHandler = (call: ApiCall<any>) => Promise<void>;
+/** 任意 StreamCall 的 handler 类型 */
 export type AnyStreamHandler = (call: StreamCall<any>) => void;
 /**
  * 从 Protocol 推导类型安全的 handler 映射。
@@ -76,8 +73,8 @@ export type ServiceHandlers<P> = {
  * 与 ServiceHandlers 对称——但 handler 返回 void（同步），
  * StreamCall.res 固定为 void（流式不返回）。
  *
- * 配合 satisfies Partial<ServiceStreamHandlers<Protocol>>，
- * 确保 key 名精确、req 类型对齐。Partial 因为不是每个方法都有流式。
+ * 配合 satisfies ServiceStreamHandlers<Pick<Protocol, "streamMethod">>，
+ * key 名精确、req 类型对齐。需要编译期检查的流式方法用 Pick 选出。
  */
 export type ServiceStreamHandlers<P> = {
     [K in keyof P & string]: P[K] extends ApiDef<infer Req, any> ? (call: StreamCall<ApiDef<Req, void>>) => void : never;

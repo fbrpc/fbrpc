@@ -235,12 +235,26 @@ export const streams = {
 ### 客户端
 
 ```ts
-import { streamRequest } from "@fbrpc/fbrpc-client";
+import { createClient } from "@fbrpc/fbrpc-client";
+import type { EchoProtocol } from "<共享包>";
 
-for await (const chunk of streamRequest("/api/agent/chat", {
-  messages: [{ role: "user", content: "你好" }],
-})) {
-  process.stdout.write(chunk as string);
+// 普通 RPC：自动返回 Promise<ApiResponse>
+// 流式 SSE：第二个泛型声明流式方法，返回 AsyncGenerator
+const api = createClient<
+  { echo: EchoProtocol },
+  { echo: readonly ["streamEcho"] }
+>({
+  baseUrl: "http://localhost:3008/api",
+  streams: { echo: ["streamEcho"] },  // 运行时配置（与泛型保持一致）
+});
+
+// 普通调用
+const r = await api.echo.echo({ message: "hi" });
+if (r.ok) console.log(r.data);
+
+// 流式调用
+for await (const chunk of api.echo.streamEcho({ count: 3 })) {
+  console.log(chunk);
 }
 ```
 
@@ -333,7 +347,7 @@ handler 什么都不调          → { ok: false, error: { code: "UNSETTLED" } }
 3. `services/<name>/_internal/<方法名>.ts` — 纯业务逻辑，文件名自解释
 4. `services/<name>/api.ts` — `export const handlers = { ... } satisfies ServiceHandlers<Protocol>`
 5. 无需手动注册路由 — `createRouter` 自扫描
-6. 客户端 `createClient<T>()` 泛型里加新模块类型
+6. 客户端 `createClient<T, S>()` — 加模块类型 + 流式方法声明
 
 ## 响应格式
 

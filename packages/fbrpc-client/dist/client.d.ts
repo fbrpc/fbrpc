@@ -2,29 +2,35 @@
  * fbrpc 类型安全客户端 — Proxy 驱动。
  *
  * 用法:
- *   const api = createClient<{ auth: AuthProtocol }>("http://localhost:3008/api");
- *   const result = await api.auth.login({ username: "foo", password: "bar" });
- *   // result: { ok: true; data: { accessToken, refreshToken } }
- *   //       | { ok: false; error: { message, code } }
+ *   const api = createClient<{ echo: EchoProtocol }, { echo: readonly ["streamEcho"] }>({
+ *     baseUrl: "http://localhost:3008/api",
+ *   });
+ *
+ *   // 普通 RPC → Promise<ApiResponse>
+ *   const result = await api.echo.echo({ message: "fbrpc works!" });
+ *
+ *   // 流式 SSE → AsyncGenerator
+ *   for await (const chunk of api.echo.streamEcho({ count: 3 })) {}
  */
-import type { ApiDef, Protocol, ReqOf, ResOf, ApiResponse } from "@fbrpc/fbrpc-core";
-/** 将 Protocol 映射为可调用方法 */
-type ProtocolClient<P extends Protocol> = {
-    [K in keyof P & string]: P[K] extends ApiDef ? (req: ReqOf<P[K]>) => Promise<ApiResponse<ResOf<P[K]>>> : never;
+import type { ApiDef, Protocol, ApiResponse } from "@fbrpc/fbrpc-core";
+type RpcMethod<P, K extends keyof P & string> = P[K] extends ApiDef<infer Req, infer Res> ? (req: Req) => Promise<ApiResponse<Res>> : never;
+type StreamMethod<P, K extends keyof P & string> = P[K] extends ApiDef<infer Req, any> ? (req: Req) => AsyncGenerator<unknown, void, undefined> : never;
+type MethodsOf<P extends Protocol, S> = [S] extends [never] ? {
+    [K in keyof P & string]: RpcMethod<P, K>;
+} : S extends readonly (keyof P & string)[] ? {
+    [K in keyof P & string]: K extends S[number] ? StreamMethod<P, K> : RpcMethod<P, K>;
+} : {
+    [K in keyof P & string]: RpcMethod<P, K>;
 };
-/** 将模块映射表映射为嵌套客户端 */
-export type FbrpcClient<T extends Record<string, Protocol>> = {
-    [Module in keyof T & string]: ProtocolClient<T[Module]>;
+export type FbrpcClient<T extends Record<string, Protocol>, S extends Record<string, readonly string[]> = {}> = {
+    [M in keyof T & string]: M extends keyof S ? MethodsOf<T[M], S[M]> : MethodsOf<T[M], never>;
 };
 export interface ClientOptions {
-    /** 服务端 base URL */
     baseUrl: string;
-    /**
-     * 每次请求前调用，返回要附加的 HTTP headers。
-     * 典型用法：返回 { Authorization: `Bearer ${getToken()}` }
-     */
     getHeaders?: () => Record<string, string>;
+    /** 流式方法声明。key=模块名，value=方法名数组。运行时驱动 Proxy 行为。 */
+    streams?: Record<string, readonly string[]>;
 }
-export declare function createClient<T extends Record<string, Protocol>>(opts: ClientOptions): FbrpcClient<T>;
+export declare function createClient<T extends Record<string, Protocol>, S extends Record<string, readonly string[]> = {}>(opts: ClientOptions): FbrpcClient<T, S>;
 export {};
 //# sourceMappingURL=client.d.ts.map

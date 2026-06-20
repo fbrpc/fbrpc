@@ -1,16 +1,11 @@
 /**
  * SSE 流式请求，返回 async iterable。
- *
- * 注意：这是底层函数，直接拼 URL。
- * 高级用法请用 createClient() + 模块协议定义。
  */
 export async function* streamRequest(url, req, opts) {
-    let headers = {
+    const headers = {
         "Content-Type": "application/json",
+        ...opts?.headers,
     };
-    if (opts?.getHeaders) {
-        headers = { ...headers, ...opts.getHeaders() };
-    }
     const res = await fetch(url, {
         method: "POST",
         headers,
@@ -31,23 +26,27 @@ export async function* streamRequest(url, req, opts) {
             // 按 SSE 帧分割
             const lines = buffer.split("\n");
             buffer = lines.pop() ?? "";
+            let eventType = "";
             for (const line of lines) {
-                if (line.startsWith("data: ")) {
+                if (line.startsWith("event: ")) {
+                    eventType = line.slice(7);
+                }
+                else if (line.startsWith("data: ")) {
                     const json = line.slice(6);
+                    if (eventType === "error") {
+                        const parsed = JSON.parse(json);
+                        throw new Error(`${parsed.code ?? "API_ERROR"}: ${parsed.error}`);
+                    }
+                    if (eventType === "done")
+                        return;
+                    // 普通数据帧
+                    eventType = "";
                     try {
                         yield JSON.parse(json);
                     }
                     catch {
-                        // 非 JSON 数据直接透传
                         yield json;
                     }
-                }
-                else if (line.startsWith("event: error")) {
-                    // 下一行 data 包含错误信息
-                    continue;
-                }
-                else if (line.startsWith("event: done")) {
-                    return;
                 }
             }
         }

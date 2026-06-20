@@ -5,8 +5,6 @@ export type {
   Protocol,
   ApiCall,
   StreamCall,
-  ApiHandler,
-  StreamHandler,
   AnyApiHandler,
   AnyStreamHandler,
   ServiceHandlers,
