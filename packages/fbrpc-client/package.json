@@ -1,6 +1,6 @@
 {
   "name": "@fbrpc/fbrpc-client",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -15,7 +15,7 @@
     "dev": "tsc --watch"
   },
   "dependencies": {
-    "@fbrpc/fbrpc-core": "workspace:*"
+    "@fbrpc/fbrpc-core": "^0.1.2"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
