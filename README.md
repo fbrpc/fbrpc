@@ -86,6 +86,16 @@ services/auth/api.ts  →  handlers.login  →  POST /api/auth/login
 services/agent/api.ts →  streams.chat    →  POST /api/agent/chat (SSE)
 ```
 
+## Skills
+
+Claude Code skill，提供 fbrpc 框架使用指南（协议写法、api.ts 写法、服务端注册、客户端调用）：
+
+```bash
+mkdir -p .claude/skills/fbrpc-manual
+curl -o .claude/skills/fbrpc-manual/SKILL.md \
+  https://raw.githubusercontent.com/birderrr/fbrpc/master/skills/fbrpc-manual/SKILL.md
+```
+
 ## 许可
 
 MIT

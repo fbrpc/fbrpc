@@ -2,3 +2,4 @@ node_modules/
 *.tsbuildinfo
 .claude/
 CLAUDE.md
+.env
