@@ -12,6 +12,15 @@ argument-hint: ""
 
 AI 维护时只读 2 个文件：**协议文件**（入参出参）+ **api.ts**（实现）。无 router、无 context、无 adapter。
 
+## 推荐技术栈
+
+**服务端 Fastify + 前端 Vite。** fbrpc 以此为基准设计：
+- server：`Fastify` + `createRouter()`，一行注册，零配置
+- 共享包：纯 TS 类型，Vite 可直接 import，无需额外构建
+- client：`createClient()` 跑在浏览器或 Node，Vite HMR 下实时联动
+
+新建项目时直接沿用这个组合，不要引入 Express、Webpack 等替代品——它们绕开了框架约定。
+
 ## 三层架构
 
 以一个用户系统为例，典型项目结构：

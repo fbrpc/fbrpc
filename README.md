@@ -21,6 +21,10 @@ const result = await api.auth.login({ username: "birder", password: "xxx" });
 pnpm add @fbrpc/fbrpc-core @fbrpc/fbrpc-server @fbrpc/fbrpc-client
 ```
 
+## 推荐技术栈
+
+服务端 **Fastify** + 前端 **Vite**。fbrpc 以此为基准设计，开箱即用。
+
 ## 文档
 
 完整使用指南通过 Claude Code skill 分发：
