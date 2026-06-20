@@ -1,56 +1,48 @@
 ---
 name: fbrpc-manual
 description: fbrpc RPC 框架使用指南。新建/修改 API、编写协议、注册服务时使用。
-version: 2.1.0
+version: 3.0.0
 allowed-tools: Read, Write, Edit, Glob, Bash(git:*)
 argument-hint: ""
 ---
 
-# fbrpc — 自建 RPC 框架
+# fbrpc — 框架参考
 
-## 设计目标
+## 核心理念
 
 AI 维护时只读 2 个文件：**协议文件**（入参出参）+ **api.ts**（实现）。无 router、无 context、无 adapter。
 
-## 包结构
-
-```
-@fbrpc/fbrpc-core     — ApiDef / ApiCall / StreamCall / RpcError / AnyApiHandler（零依赖）
-@fbrpc/fbrpc-server   — createRouter() + scanModules()（Fastify 插件）
-@fbrpc/fbrpc-client   — createClient<T>() Proxy 客户端 + streamRequest()
-```
-
-协议类型存放在 **共享包**（前后端共用），实现放在 server 的 `services/` 下。
-
-## 三层约定
+## 三层架构
 
 ```
 共享包/protocols/                   server/services/                   client/
   <module>.ts     ← 纯类型（ApiDef）   <module>/                         createClient<{
-                                          api.ts       ← handlers 导出      <module>: <Protocol>
+                                          api.ts       ← 唯一入口          <module>: <Protocol>
                                           _internal/   ← 业务逻辑          }>({...})
                                             impl.ts
-                                            ...
                                     middleware/
-                                      token.ts      ← HTTP 层工具
+                                      token.ts      ← HTTP 横切
 ```
 
 **规则：**
-- 协议文件只放 TS 接口，零框架依赖（只 import `ApiDef`）
-- `api.ts` 是模块唯一的公开实现入口
-- `_internal/` 内任意拆分，外部绝不 import
-- `middleware/` 放 HTTP 层横切工具（token 解析等）
+- 协议文件只放 TS 接口，零框架依赖
+- `api.ts` 是模块唯一的公开入口，外部绝不 import `_internal/`
+- `_internal/` 内任意拆分
+- `middleware/` 放鉴权所需工具（token 解析等）
 
-## 协议文件写法
+## 协议文件
 
 ```ts
 import type { ApiDef } from "@fbrpc/fbrpc-core";
 
-// 命名：{Method}Req / {Method}Res
+// 每个方法独立 Req/Res 接口
 export interface LoginReq { username: string; password: string; }
 export interface LoginRes { accessToken: string; refreshToken: string; }
 
-// 模块协议映射——一个文件展示全部 API 入参出参
+export interface RegisterReq { username: string; password: string; email: string; }
+export interface RegisterRes { userId: string; }
+
+// 模块协议映射——一个文件展示全部 API
 export interface AuthProtocol {
   login:    ApiDef<LoginReq, LoginRes>;
   register: ApiDef<RegisterReq, RegisterRes>;
@@ -58,111 +50,242 @@ export interface AuthProtocol {
 }
 ```
 
-在共享包的 `index.ts` 中导出：
+共享包 `index.ts` 集中导出：
 ```ts
 export type { AuthProtocol } from "./protocols/auth.js";
+export type { UsersProtocol } from "./protocols/users.js";
 ```
 
-## api.ts 写法
+## api.ts
+
+### 基本结构
 
 ```ts
-import type { AnyApiHandler, ApiCall } from "@fbrpc/fbrpc-core";
+import type { AnyApiHandler, AnyStreamHandler, ApiCall } from "@fbrpc/fbrpc-core";
 import type { AuthProtocol } from "<共享包>";
 import * as svc from "./_internal/impl.js";
 
+// 类型缩写——免去每次写 ApiCall<AuthProtocol["login"]>
 type C<K extends keyof AuthProtocol> = ApiCall<AuthProtocol[K]>;
 
 export const handlers: Record<string, AnyApiHandler> = {
   async login(call: C<"login">) {
-    const r = await svc.loginUser(call.req.username, call.req.password);
+    const { username, password } = call.req;
+
+    // 1. 校验
+    if (!username) return call.error("用户名不能为空", "VALIDATION");
+    if (password.length < 6) return call.error("密码至少6位", "VALIDATION");
+
+    // 2. 业务逻辑委托到 _internal
+    const r = await svc.loginUser(username, password);
+
+    // 3. 返回
     if (r.invalid) return call.error("用户名或密码错误");
     call.succ({ accessToken: r.accessToken, refreshToken: r.refreshToken });
   },
-
-  async logout(call: C<"logout">) {
-    await svc.logoutUser(call.req.refreshToken);
-    call.succ(undefined);
-  },
 };
 
-// SSE 流式端点
+export const streams: Record<string, AnyStreamHandler> = {
+  // SSE 示例见下文
+};
+```
+
+### _internal/impl.ts
+
+```ts
+// services/auth/_internal/impl.ts
+// 纯业务逻辑，不接触 ApiCall、不接触 HTTP。
+// 返回 POJO，由 api.ts 转换为 call.succ / call.error。
+
+interface LoginResult {
+  accessToken: string;
+  refreshToken: string;
+  invalid?: boolean;
+}
+
+export async function loginUser(username: string, password: string): Promise<LoginResult> {
+  const user = await db.user.findUnique({ where: { username } });
+  if (!user || !(await bcrypt.compare(password, user.passwordHash))) {
+    return { invalid: true, accessToken: "", refreshToken: "" };
+  }
+  return {
+    accessToken: signJwt({ userId: user.id }),
+    refreshToken: generateRefreshToken(user.id),
+  };
+}
+```
+
+**原则：** `_internal/` 函数不 import core 类型、不调 `call.*`、不读 `call.meta`。需要 meta 信息时（如 userId），由 api.ts 从 `call.meta` 取出当参数传入。
+
+### 类型要点
+
+- 用 `Record<string, AnyApiHandler>` 声明 handlers 类型（不用 `ApiHandler` 泛型 —— 它推断不出 key 约束）
+- 每个 handler 的 call 参数显式标注 `C<"methodName">`，获取该方法的 req/res 类型
+- **不用 `satisfies`** —— 它不窄化 call.req 的类型，和 `Record<string, AnyApiHandler>` 冲突
+
+### call 对象规则
+
+| 规则 | 原因 |
+|------|------|
+| 不 return 值 | 框架忽略 return，必须调 `call.succ()` / `call.error()` |
+| 不抛异常 | 抛了转 `{ code: "INTERNAL" }`，丢失业务语义 |
+| 用 `call.error(msg, code)` | 业务错误用自定义 code（如 `"POINTS_INSUFFICIENT"`） |
+| `call.meta` 只读 | 由鉴权函数注入，handler 不应修改 |
+
+## SSE 流式
+
+### 服务端
+
+```ts
 export const streams: Record<string, AnyStreamHandler> = {
   async chat(call) {
     call.stream(async (send) => {
-      for await (const chunk of someStream) send(chunk);
+      // send(chunk) → 自动转为 SSE data 帧
+      const llm = openai.chat.completions.create({ stream: true, ... });
+      for await (const chunk of llm) {
+        send(chunk.choices[0]?.delta?.content ?? "");
+      }
+      // stream 结束时框架自动发送 done 事件
     });
   },
 };
 ```
 
-**类型要点：**
-- 用 `Record<string, AnyApiHandler>` 收窄类型（不要用 `ApiHandler` 泛型）
-- 每个 handler 的 call 参数显式标注 `C<"methodName">`
-- 不用 `satisfies`——它不提供窄化类型
-
-**call 对象规则：**
-- handler 不 return 值，必须调 `call.succ()` 或 `call.error()`
-- handler 不抛异常（抛了框架转为 `{ code: "INTERNAL" }`）
-- `call.meta` 含鉴权数据（`{ userId }` 等）
-- 流式用 `call.stream(fn)`，`send(chunk)` 自动转 SSE
-
-## 服务端注册
+### 客户端
 
 ```ts
-import { createRouter } from "@fbrpc/fbrpc-server";
+import { streamRequest } from "@fbrpc/fbrpc-client";
 
-const rpc = await createRouter({
-  apiDir: "./services",    // 扫描 services/*/api.ts
-  auth: (req) => {         // 鉴权，返回注入 call.meta 的数据
-    const token = req.headers.authorization?.replace("Bearer ", "") ?? "";
-    const decoded = decodeToken(token);
-    return decoded ? { userId: decoded.userId } : null;  // null = 401
+for await (const chunk of streamRequest("/api/agent/chat", {
+  messages: [{ role: "user", content: "你好" }],
+})) {
+  process.stdout.write(chunk as string);
+}
+```
+
+### SSE 错误处理
+
+```ts
+export const streams: Record<string, AnyStreamHandler> = {
+  async process(call) {
+    // 参数校验失败——直接 err 不启流
+    if (!call.req.fileId) return call.error("缺少 fileId");
+
+    call.stream(async (send) => {
+      // 流中途出错——throw，框架发 error 事件后 end
+      const file = await loadFile(call.req.fileId);
+      if (!file) throw new Error("文件不存在");
+      // ...
+    });
   },
-});
-
-app.register(rpc.register, { prefix: "/api" });
-// POST /api/auth/login    → services/auth/api.ts → handlers.login
-// POST /api/agent/chat    → services/agent/api.ts → streams.chat (SSE)
+};
 ```
 
-## 客户端调用
+## 鉴权与中间件
+
+### 服务端配置
 
 ```ts
-import { createClient } from "@fbrpc/fbrpc-client";
-import type { AuthProtocol, UsersProtocol } from "<共享包>";
-
-const api = createClient<{ auth: AuthProtocol; users: UsersProtocol }>({
-  baseUrl: "<server>/api",
-  getHeaders: () => ({ Authorization: `Bearer ${getToken()}` }),
+const rpc = await createRouter({
+  apiDir: "./src/services",
+  auth: (req) => {
+    const token = req.headers.authorization?.replace("Bearer ", "");
+    if (!token) return null;                           // null → 401
+    const payload = verifyJwt(token);
+    return { userId: payload.sub, role: payload.role }; // 注入 call.meta
+  },
+  publicRoutes: [
+    "auth.login",     // 精确匹配
+    "auth.register",
+    "health.*",       // health 模块全部公开
+  ],
 });
-
-const result = await api.auth.login({ username: "foo", password: "bar" });
-//    ^? { ok: true; data: { accessToken, refreshToken } }
-//       | { ok: false; error: { message: string, code: string } }
-
-if (result.ok) console.log(result.data.accessToken);
-else console.error(result.error.message);
 ```
+
+### handler 中使用 meta
+
+```ts
+async deleteUser(call: C<"deleteUser">) {
+  const { userId, role } = call.meta;  // 鉴权注入
+  if (role !== "admin") return call.error("无权限", "FORBIDDEN");
+
+  await svc.deleteUser(call.req.targetUserId);
+  call.succ(undefined);
+}
+```
+
+### middleware/ 示例
+
+```ts
+// server/middleware/token.ts
+import jwt from "jsonwebtoken";
+
+export function verifyJwt(token: string): { sub: string; role: string } | null {
+  try { return jwt.verify(token, SECRET) as any; }
+  catch { return null; }
+}
+```
+
+## 校验模式
+
+```ts
+// _internal/validate.ts
+interface FieldError { field: string; message: string; }
+
+export function validateLogin(req: LoginReq): FieldError | null {
+  if (!req.username) return { field: "username", message: "用户名不能为空" };
+  if (!req.password) return { field: "password", message: "密码不能为空" };
+  if (req.password.length < 6) return { field: "password", message: "密码至少6位" };
+  return null;
+}
+```
+
+```ts
+// api.ts
+async login(call: C<"login">) {
+  const err = validateLogin(call.req);
+  if (err) return call.error(err.message, "VALIDATION");
+  // ...
+}
+```
+
+## 错误处理
+
+```
+call.error(msg)              → { ok: false, error: { code: "API_ERROR", message: msg } }
+call.error(msg, "POINTS")    → { ok: false, error: { code: "POINTS", message: msg } }
+throw new Error(msg)         → { ok: false, error: { code: "INTERNAL", message: msg } }
+throw new RpcError(msg, "X") → { ok: false, error: { code: "X", message: msg } }
+handler 什么都不调          → { ok: false, error: { code: "UNSETTLED" } }
+```
+
+**原则：** 可预期的用户错误用 `call.error`，系统级意外用 `throw RpcError`。不要 `throw new Error`（会被吞掉业务语义）。
+
+## 反模式
+
+| ❌ | ✅ |
+|----|----|
+| `return call.succ(data)` | `call.succ(data)` — 不 return |
+| `throw new Error("用户不存在")` | `call.error("用户不存在")` — 可预期的给 call |
+| 把业务逻辑写在 api.ts 里 | 委托到 `_internal/impl.ts` |
+| 从外部 import `_internal/` | 只通过 api.ts 调用 |
+| 用 `satisfies ServiceHandlers<P>` | 用 `Record<string, AnyApiHandler>` + `C<K>` |
+| `call.meta.userId = x` | `call.meta` 只读 |
+| 流式 handler 忘记调 `call.stream()` 或 `call.error()` | 必须调其一 |
+
+## 新增模块清单
+
+1. `protocols/<name>.ts` — Req/Res 接口 + Protocol 映射
+2. 共享包 `index.ts` — `export type { XxxProtocol }`
+3. `services/<name>/_internal/impl.ts` — 纯业务逻辑
+4. `services/<name>/api.ts` — handlers 导出（`Record<string, AnyApiHandler>`）
+5. 无需手动注册路由 — `createRouter` 自扫描
+6. 客户端 `createClient<T>()` 泛型里加新模块类型
 
 ## 响应格式
 
-所有请求返回统一结构：
-```ts
+```
 { ok: true, data: <Res> } | { ok: false, error: { message: string, code: string } }
 ```
 
-| 场景 | handler 做法 | 客户端收到 |
-|------|-------------|-----------|
-| 业务错误 | `call.error("用户名不存在")` | `code: "API_ERROR"` |
-| 自定义错误码 | `call.error("积分不足", "POINTS")` | `code: "POINTS"` |
-| 抛异常 | `throw new Error("DB挂了")` | `code: "INTERNAL"` |
-| 忘调 succ/error | — | `code: "UNSETTLED"` |
-
-## 新增模块步骤
-
-1. 共享包 `protocols/<name>.ts` — Req/Res 接口 + Protocol 映射
-2. 共享包 `index.ts` — `export type { XxxProtocol }`
-3. server `services/<name>/_internal/` — 业务逻辑
-4. server `services/<name>/api.ts` — `export const handlers: Record<string, AnyApiHandler>`
-5. 服务端自动识别（`createRouter` 扫描约定），无需手动注册
-6. 客户端 `createClient<T>()` 泛型加新模块类型
+客户端统一通过 `result.ok` 判别，无需 try-catch。
