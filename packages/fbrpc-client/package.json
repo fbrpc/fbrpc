@@ -1,5 +1,5 @@
 {
-  "name": "@birderr/fbrpc-client",
+  "name": "@birderrr/fbrpc-client",
   "version": "0.1.0",
   "type": "module",
   "main": "./dist/index.js",
@@ -15,7 +15,7 @@
     "dev": "tsc --watch"
   },
   "dependencies": {
-    "@birderr/fbrpc-core": "workspace:*"
+    "@birderrr/fbrpc-core": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
@@ -32,6 +32,6 @@
   ],
   "repository": {
     "type": "git",
-    "url": "https://github.com/Birderr/fbrpc"
+    "url": "https://github.com/birderrr/fbrpc"
   }
 }

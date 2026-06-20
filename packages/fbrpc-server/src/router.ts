@@ -11,8 +11,8 @@
  *     响应: text/event-stream (SSE)
  */
 import type { FastifyInstance, FastifyRequest, FastifyReply } from "fastify";
-import { RpcError } from "@birderr/fbrpc-core";
-import type { ApiCall, StreamCall } from "@birderr/fbrpc-core";
+import { RpcError } from "@birderrr/fbrpc-core";
+import type { ApiCall, StreamCall } from "@birderrr/fbrpc-core";
 import { scanModules } from "./scanner.js";
 
 // ── 公开类型 ──

@@ -17,7 +17,7 @@ importers:
 
   packages/fbrpc-client:
     dependencies:
-      '@birderr/fbrpc-core':
+      '@birderrr/fbrpc-core':
         specifier: workspace:*
         version: link:../fbrpc-core
     devDependencies:
@@ -39,7 +39,7 @@ importers:
 
   packages/fbrpc-server:
     dependencies:
-      '@birderr/fbrpc-core':
+      '@birderrr/fbrpc-core':
         specifier: workspace:*
         version: link:../fbrpc-core
     devDependencies:

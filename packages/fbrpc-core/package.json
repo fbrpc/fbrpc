@@ -1,5 +1,5 @@
 {
-  "name": "@birderr/fbrpc-core",
+  "name": "@birderrr/fbrpc-core",
   "version": "0.1.0",
   "type": "module",
   "main": "./dist/index.js",
@@ -29,6 +29,6 @@
   ],
   "repository": {
     "type": "git",
-    "url": "https://github.com/Birderr/fbrpc"
+    "url": "https://github.com/birderrr/fbrpc"
   }
 }

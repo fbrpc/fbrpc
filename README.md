@@ -6,24 +6,22 @@ Type-safe RPC framework for Fastify + TypeScript. Protocol-driven — define you
 
 | Package | Description |
 |---------|-------------|
-| `@birderr/fbrpc-core` | Core types — `ApiDef`, `ApiCall`, `StreamCall`, `ServiceHandlers`. Zero dependencies. |
-| `@birderr/fbrpc-server` | Fastify router — scans `services/*/api.ts`, auto-registers `POST /api/:module/:method`. |
-| `@birderr/fbrpc-client` | Proxy-based caller — `api.auth.login(req)` with full type inference. |
+| `@birderrr/fbrpc-core` | Core types — `ApiDef`, `ApiCall`, `StreamCall`, `ServiceHandlers`. Zero dependencies. |
+| `@birderrr/fbrpc-server` | Fastify router — scans `services/*/api.ts`, auto-registers `POST /api/:module/:method`. |
+| `@birderrr/fbrpc-client` | Proxy-based caller — `api.auth.login(req)` with full type inference. |
 
 ## Install
 
 ```bash
-pnpm add @birderr/fbrpc-core @birderr/fbrpc-server @birderr/fbrpc-client
+pnpm add @birderrr/fbrpc-core @birderrr/fbrpc-server @birderrr/fbrpc-client
 ```
-
-> Requires `.npmrc` pointing to GitHub Packages. See [GitHub Packages docs](https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-npm-registry#installing-a-package).
 
 ## Quick Start
 
 ### 1. Define a protocol (`api-user/` package)
 
 ```ts
-import type { ApiDef } from "@birderr/fbrpc-core";
+import type { ApiDef } from "@birderrr/fbrpc-core";
 
 export interface AuthProtocol {
   login: ApiDef<{ username: string; password: string }, { accessToken: string }>;
@@ -34,7 +32,7 @@ export interface AuthProtocol {
 
 ```ts
 // services/auth/api.ts
-import type { ApiCall, ServiceHandlers } from "@birderr/fbrpc-core";
+import type { ApiCall, ServiceHandlers } from "@birderrr/fbrpc-core";
 import type { AuthProtocol } from "@your/api-user";
 
 export const handlers = {
@@ -50,7 +48,7 @@ export const handlers = {
 
 ```ts
 import Fastify from "fastify";
-import { createRouter } from "@birderr/fbrpc-server";
+import { createRouter } from "@birderrr/fbrpc-server";
 
 const app = Fastify();
 const rpc = await createRouter({
@@ -67,7 +65,7 @@ await app.register(rpc.register, { prefix: "/api" });
 ### 4. Client
 
 ```ts
-import { createClient } from "@birderr/fbrpc-client";
+import { createClient } from "@birderrr/fbrpc-client";
 import type { AuthProtocol } from "@your/api-user";
 
 const api = createClient<{ auth: AuthProtocol }>({

@@ -7,7 +7,7 @@
 import { readdir } from "node:fs/promises";
 import type { Dirent } from "node:fs";
 import { pathToFileURL } from "node:url";
-import type { ApiModule } from "@birderr/fbrpc-core";
+import type { ApiModule } from "@birderrr/fbrpc-core";
 
 export interface ScanResult {
   /** 模块名 → ApiModule */
