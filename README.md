@@ -12,24 +12,11 @@ Type-safe RPC framework for Fastify + TypeScript. Protocol-driven — define you
 
 ## Install
 
-**Step 1** — Create `.npmrc` in your project root:
-
-```
-@birderr:registry=https://npm.pkg.github.com
-//npm.pkg.github.com/:_authToken=${NPM_TOKEN}
-```
-
-**Step 2** — Set `NPM_TOKEN` env var with a GitHub [personal access token](https://github.com/settings/tokens) that has `read:packages` scope, then:
-
-```bash
-npm install @birderr/fbrpc-core @birderr/fbrpc-server @birderr/fbrpc-client
-```
-
-Or with pnpm:
-
 ```bash
 pnpm add @birderr/fbrpc-core @birderr/fbrpc-server @birderr/fbrpc-client
 ```
+
+> Requires `.npmrc` pointing to GitHub Packages. See [GitHub Packages docs](https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-npm-registry#installing-a-package).
 
 ## Quick Start
 
