@@ -1,7 +1,7 @@
 ---
 name: fbrpc-manual
 description: fbrpc RPC 框架使用指南。新建/修改 API、编写协议、注册服务时使用。
-version: 3.0.0
+version: 0.1.4.0
 allowed-tools: Read, Write, Edit, Glob, Bash(git:*)
 argument-hint: ""
 ---
