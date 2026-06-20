@@ -16,10 +16,10 @@ export async function createRouter(opts) {
         sseHeaders["Access-Control-Allow-Origin"] = corsOrigin;
     const isPublicRoute = (moduleName, methodName) => opts.publicRoutes?.includes(`${moduleName}.${methodName}`) ||
         opts.publicRoutes?.includes(`${moduleName}.*`);
-    const authenticate = (request, moduleName, methodName) => {
+    const authenticate = async (request, moduleName, methodName) => {
         if (isPublicRoute(moduleName, methodName))
             return {};
-        return opts.auth?.(request) ?? null;
+        return opts.auth ? await opts.auth(request) : null;
     };
     return {
         async register(app, _registerOpts) {
@@ -31,7 +31,7 @@ export async function createRouter(opts) {
                             reply.header("Access-Control-Allow-Origin", corsOrigin);
                         if (opts.timeout)
                             request.raw.setTimeout(opts.timeout);
-                        const meta = authenticate(request, moduleName, methodName);
+                        const meta = await authenticate(request, moduleName, methodName);
                         if (meta === null) {
                             return reply.status(401).send({ ok: false, error: { message: "Unauthorized", code: "UNAUTHORIZED" } });
                         }
@@ -71,7 +71,7 @@ export async function createRouter(opts) {
                     app.post(`/${moduleName}/${methodName}`, async (request, reply) => {
                         if (opts.timeout)
                             request.raw.setTimeout(opts.timeout);
-                        const meta = authenticate(request, moduleName, methodName);
+                        const meta = await authenticate(request, moduleName, methodName);
                         if (meta === null) {
                             return reply.status(401).send({ ok: false, error: { message: "Unauthorized", code: "UNAUTHORIZED" } });
                         }

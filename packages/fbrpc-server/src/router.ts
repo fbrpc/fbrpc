@@ -20,8 +20,8 @@ import { scanModules } from "./scanner.js";
 export interface RouterOptions {
   /** services 目录绝对路径。扫描 services 下各模块的 api.ts。 */
   apiDir: string;
-  /** 鉴权函数。返回 null → 401。返回对象注入 call.meta。 */
-  auth?: (req: FastifyRequest) => Record<string, unknown> | null;
+  /** 鉴权函数（支持异步）。返回 null → 401。返回对象注入 call.meta。 */
+  auth?: (req: FastifyRequest) => Record<string, unknown> | null | Promise<Record<string, unknown> | null>;
   /** 跳过鉴权的路由。支持 "模块.方法" 和 "模块.*" 通配。 */
   publicRoutes?: string[];
   /** CORS。false=不设头，true=*，{ origin }=指定来源。默认 false。 */
@@ -55,9 +55,9 @@ export async function createRouter(opts: RouterOptions): Promise<FbrpcRouter> {
     opts.publicRoutes?.includes(`${moduleName}.${methodName}`) ||
     opts.publicRoutes?.includes(`${moduleName}.*`);
 
-  const authenticate = (request: FastifyRequest, moduleName: string, methodName: string) => {
+  const authenticate = async (request: FastifyRequest, moduleName: string, methodName: string) => {
     if (isPublicRoute(moduleName, methodName)) return {};
-    return opts.auth?.(request) ?? null;
+    return opts.auth ? await opts.auth(request) : null;
   };
 
   return {
@@ -71,7 +71,7 @@ export async function createRouter(opts: RouterOptions): Promise<FbrpcRouter> {
             if (corsOrigin) reply.header("Access-Control-Allow-Origin", corsOrigin);
             if (opts.timeout) request.raw.setTimeout(opts.timeout);
 
-            const meta = authenticate(request, moduleName, methodName);
+            const meta = await authenticate(request, moduleName, methodName);
             if (meta === null) {
               return reply.status(401).send({ ok: false, error: { message: "Unauthorized", code: "UNAUTHORIZED" } });
             }
@@ -114,7 +114,7 @@ export async function createRouter(opts: RouterOptions): Promise<FbrpcRouter> {
           app.post(`/${moduleName}/${methodName}`, async (request: FastifyRequest, reply: FastifyReply) => {
             if (opts.timeout) request.raw.setTimeout(opts.timeout);
 
-            const meta = authenticate(request, moduleName, methodName);
+            const meta = await authenticate(request, moduleName, methodName);
             if (meta === null) {
               return reply.status(401).send({ ok: false, error: { message: "Unauthorized", code: "UNAUTHORIZED" } });
             }

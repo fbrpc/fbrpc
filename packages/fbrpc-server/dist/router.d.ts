@@ -14,8 +14,8 @@ import type { FastifyInstance, FastifyRequest } from "fastify";
 export interface RouterOptions {
     /** services 目录绝对路径。扫描 services 下各模块的 api.ts。 */
     apiDir: string;
-    /** 鉴权函数。返回 null → 401。返回对象注入 call.meta。 */
-    auth?: (req: FastifyRequest) => Record<string, unknown> | null;
+    /** 鉴权函数（支持异步）。返回 null → 401。返回对象注入 call.meta。 */
+    auth?: (req: FastifyRequest) => Record<string, unknown> | null | Promise<Record<string, unknown> | null>;
     /** 跳过鉴权的路由。支持 "模块.方法" 和 "模块.*" 通配。 */
     publicRoutes?: string[];
     /** CORS。false=不设头，true=*，{ origin }=指定来源。默认 false。 */
