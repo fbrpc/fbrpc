@@ -68,8 +68,8 @@ cd packages/fbrpc-client && npm version patch --no-git-tag-version
 
 | 名称 | URL | 用途 |
 |------|-----|------|
-| `origin` | `git@github.com:Birderr/fbrpc.git` | 个人仓库 |
-| `github-pkg` | `git@github.com:birderrr/fbrpc.git` | 组织仓库（GitHub Packages 上游） |
+| `origin` | `git@github.com:birderrr/fbrpc.git` | 主仓库 |
+| `github-pkg` | `git@github.com:birderrr/fbrpc.git` | GitHub Packages 上游（同仓库） |
 
 ## 备注
 
