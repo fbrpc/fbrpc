@@ -1,6 +1,6 @@
 {
   "name": "@fbrpc/fbrpc-server",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -15,7 +15,7 @@
     "dev": "tsc --watch"
   },
   "dependencies": {
-    "@fbrpc/fbrpc-core": "^0.1.4"
+    "@fbrpc/fbrpc-core": "^0.1.5"
   },
   "peerDependencies": {
     "fastify": "^5.0.0"
