@@ -40,7 +40,7 @@ export interface StreamCall<D extends ApiDef<unknown, void> = ApiDef<unknown, vo
      * 启动流式输出。
      * fn 接收 send 函数，每次 send(chunk) 输出一个 SSE 事件。
      */
-    stream(fn: (send: (chunk: unknown) => Promise<void> | void) => Promise<void>): void;
+    stream(fn: (send: (chunk: unknown) => void) => Promise<void>): void;
     /** 流式错误 */
     error(message: string, code?: string): void;
 }

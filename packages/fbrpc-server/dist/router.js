@@ -35,6 +35,7 @@ export async function createRouter(opts) {
                         if (meta === null) {
                             return reply.status(401).send({ ok: false, error: { message: "Unauthorized", code: "UNAUTHORIZED" } });
                         }
+                        meta.requestId = crypto.randomUUID();
                         // call.req 来自 request.body——HTTP 边界的必然类型转换
                         let settled = false;
                         const call = {
@@ -74,6 +75,7 @@ export async function createRouter(opts) {
                         if (meta === null) {
                             return reply.status(401).send({ ok: false, error: { message: "Unauthorized", code: "UNAUTHORIZED" } });
                         }
+                        meta.requestId = crypto.randomUUID();
                         reply.raw.writeHead(200, sseHeaders);
                         let settled = false;
                         const call = {
