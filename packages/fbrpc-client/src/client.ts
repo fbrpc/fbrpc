@@ -12,7 +12,7 @@
  *   // 流式 SSE → AsyncGenerator
  *   for await (const chunk of api.echo.streamEcho({ count: 3 })) {}
  */
-import type { ApiDef, Protocol, ApiResponse } from "@fbrpc/fbrpc-core";
+import type { ApiDef, ApiResponse } from "@fbrpc/fbrpc-core";
 import { streamRequest } from "./stream.js";
 
 // ── 类型魔法 ──
@@ -27,13 +27,13 @@ type StreamMethod<P, K extends keyof P & string> =
     ? (req: Req) => AsyncGenerator<unknown, void, undefined>
     : never;
 
-type MethodsOf<P extends Protocol, S> = [S] extends [never]
+type MethodsOf<P, S> = [S] extends [never]
   ? { [K in keyof P & string]: RpcMethod<P, K> }
   : S extends readonly (keyof P & string)[]
     ? { [K in keyof P & string]: K extends S[number] ? StreamMethod<P, K> : RpcMethod<P, K> }
     : { [K in keyof P & string]: RpcMethod<P, K> };
 
-export type FbrpcClient<T extends Record<string, Protocol>, S extends Record<string, readonly string[]> = {}> = {
+export type FbrpcClient<T, S extends Record<string, readonly string[]> = {}> = {
   [M in keyof T & string]: M extends keyof S
     ? MethodsOf<T[M], S[M]>
     : MethodsOf<T[M], never>;
@@ -49,7 +49,7 @@ export interface ClientOptions {
 }
 
 export function createClient<
-  T extends Record<string, Protocol>,
+  T,
   S extends Record<string, readonly string[]> = {},
 >(
   opts: ClientOptions,
