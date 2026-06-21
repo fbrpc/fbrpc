@@ -176,7 +176,31 @@ export const Err = {
   notFound:     (msg = "不存在") => ({ message: msg, code: "NOT_FOUND" as const }),
   validation:   (msg: string)    => ({ message: msg, code: "VALIDATION" as const }),
 };
+
+### _internal/index.ts — 跨模块契约
+
+`index.ts` 是模块的**内部 API 清单**——只 re-export 给其他模块调用的函数。
+
+```ts
+// services/auth/_internal/index.ts
+export { validateToken } from "./token.js";
+export { getUserById } from "./user.js";
+// login() 不导出 — 只给本模块 api.ts 用
 ```
+
+调用方不直接 import `_internal/` 子文件，走契约层：
+
+```ts
+// services/user/_internal/delete-user.ts
+import { getUserById } from "../../auth/_internal/index.js";
+```
+
+规则：
+- `index.ts` 只放 re-export，零逻辑
+- 没出现在 index.ts 的函数 = 模块私有，改签名不看外部
+- 外部只 import `_internal/index.js`，不穿透到子文件
+
+---
 
 api.ts 调用：
 
