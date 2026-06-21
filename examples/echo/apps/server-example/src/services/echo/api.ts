@@ -1,6 +1,6 @@
 import type { ApiCall, ServiceHandlers, ServiceStreamHandlers, StreamCall } from "@fbrpc/fbrpc-core";
 import type { EchoProtocol } from "@fbrpc/api-example";
-import * as echoSvc from "./_internal/echo-handler.js";
+import * as echoSvc from "./_internal_index.js";
 
 // ── handlers ──
 
