@@ -27,6 +27,9 @@ importers:
         specifier: workspace:*
         version: link:../../../../packages/fbrpc-core
     devDependencies:
+      '@types/node':
+        specifier: ^22.0.0
+        version: 22.20.0
       tsx:
         specifier: ^4.0.0
         version: 4.22.4
@@ -65,8 +68,8 @@ importers:
   packages/fbrpc-client:
     dependencies:
       '@fbrpc/fbrpc-core':
-        specifier: ^0.1.2
-        version: 0.1.2
+        specifier: workspace:*
+        version: link:../fbrpc-core
     devDependencies:
       '@types/node':
         specifier: ^22.0.0
@@ -87,8 +90,8 @@ importers:
   packages/fbrpc-server:
     dependencies:
       '@fbrpc/fbrpc-core':
-        specifier: ^0.1.2
-        version: 0.1.2
+        specifier: workspace:*
+        version: link:../fbrpc-core
     devDependencies:
       '@types/node':
         specifier: ^22.0.0
@@ -275,9 +278,6 @@ packages:
 
   '@fastify/proxy-addr@5.1.0':
     resolution: {integrity: sha512-INS+6gh91cLUjB+PVHfu1UqcB76Sqtpyp7bnL+FYojhjygvOPA9ctiD/JDKsyD9Xgu4hUhCSJBPig/w7duNajw==}
-
-  '@fbrpc/fbrpc-core@0.1.2':
-    resolution: {integrity: sha512-fzwVBQkmH19jD11rVn2b2mUZofQI8G+j5v0fs/cnYuTMF0bLVkPWgnx7I4gjTwQ47BgsebX70Ec8sAItBiXSdA==}
 
   '@pinojs/redact@0.4.0':
     resolution: {integrity: sha512-k2ENnmBugE/rzQfEcdWHcCY+/FM3VLzH9cYEsbdsoqrvzAKRhUZeRNhAZvB8OitQJ1TBed3yqWtdjzS6wJKBwg==}
@@ -556,8 +556,6 @@ snapshots:
     dependencies:
       '@fastify/forwarded': 3.0.1
       ipaddr.js: 2.4.0
-
-  '@fbrpc/fbrpc-core@0.1.2': {}
 
   '@pinojs/redact@0.4.0': {}
 
