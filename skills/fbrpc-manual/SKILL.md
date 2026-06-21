@@ -123,8 +123,9 @@ services/auth/
     errors.ts              ← ServiceError 类型
 ```
 
-两条硬规则：
+三条硬规则：
 - `api.ts` 只 import `./_internal_index.js`——没有别的 import
+- `_internal/` 子文件之间不直接 import，走 `_internal_index.ts`——模块内自消费也面向契约
 - 跨模块只 import `../<module>/_internal_index.js`——永不穿透到 `_internal/` 子文件
 
 命名原则：**AI 看文件名就知道里面有什么，不用打开**。禁用 `impl.ts`、`utils.ts` 等万能名字。
@@ -152,9 +153,8 @@ export { validateToken } from "./_internal/token.js";
 
 ```ts
 // services/auth/_internal/login.ts
-import { comparePasswords } from "./password.js";
-import { signTokens } from "./token.js";
-import type { ServiceError } from "./errors.js";
+import { comparePasswords, signTokens } from "../_internal_index.js";
+import type { ServiceError } from "../_internal_index.js";
 
 export interface LoginResult {
   accessToken: string;

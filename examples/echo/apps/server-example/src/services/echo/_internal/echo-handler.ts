@@ -1,4 +1,4 @@
-import type { ServiceError } from "./errors.js";
+import type { ServiceError } from "../_internal_index.js";
 
 // ── 普通 RPC ──
 
